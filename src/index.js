@@ -4,7 +4,7 @@ import './index.css';
 
 function Square(props){
   return(
-    <button className="square" onClick={props.onClick}>
+    <button className={`square ${props.win ? 'win' : ''}`} onClick={props.onClick}>
       {props.value}
     </button>
   );
@@ -13,8 +13,11 @@ function Square(props){
 class Board extends React.Component {
 
   renderSquare(i) {
+    const win = this.props.winner.fields.includes(i);
+    
     return(
       <Square 
+        win={win}
         value={this.props.squares[i]} 
         onClick={() => this.props.onClick(i)}
       />
@@ -51,6 +54,10 @@ class Game extends React.Component {
     this.state = {
       history: [{
         squares: Array(9).fill(null),
+        winner: {
+          winner: null,
+          fields: Array(3).fill(null),
+        },
       }],
       xIsNext: true,
       stepNumber: 0,
@@ -61,16 +68,20 @@ class Game extends React.Component {
     const history = this.state.history.slice(0, this.state.stepNumber + 1);
     const current = history[history.length -1];
     const squares = current.squares.slice();
-    if (calculateWinner(squares) || squares[i]){
+    if (current.winner.winner || squares[i]){
       return;
     }
     squares[i] = this.state.xIsNext ? 'X' : 'O';
+    const winner = calculateWinner(squares);
     this.setState({
       history: history.concat([{
         squares: squares,
+        move: i,
+        winner: winner,
       }]),
       stepNumber: history.length,
       xIsNext: !this.state.xIsNext,
+      winner: winner,
     });
   }
 
@@ -85,6 +96,10 @@ class Game extends React.Component {
     this.setState({
       history: [{
         squares: Array(9).fill(null),
+        winner: {
+          winner: null,
+          fields: Array(3).fill(null),
+        },
       }],
       xIsNext: true,
       stepNumber: 0,
@@ -94,22 +109,26 @@ class Game extends React.Component {
   render() {
     const history = this.state.history;
     const current = history[this.state.stepNumber];
-    const winner = calculateWinner(current.squares);
+    const winner = current.winner;
 
     const moves = history.map((step, move) => {
-      const desc = move ? `Go to move no. ${move}` : 'Go to the beginning';
+      let desc = move ? `Go to move no. ${move}` : 'Go to the beginning';
       return (
         <li key={move}>
+          <span>{ step.xIsNext } on {parseGameField(step.move)}</span>
           <button onClick={() => this.jumpTo(move)}>{desc}</button>
         </li>
       );
     });
 
     let status;
-    if (winner === false){
+    // tie
+    if (winner.winner === false){
       status = "It's a tie!";
-    } else if (winner){
-      status = `The winner is: ${ winner }`;
+    // winner
+    } else if (winner.winner){
+      status = `The winner is: ${ winner.winner }`;
+    // next player
     } else {
       status = `Next player: ${ this.state.xIsNext ? 'X' : 'O' }`;
     }
@@ -118,6 +137,7 @@ class Game extends React.Component {
       <div className="game">
         <div className="game-board">
           <Board 
+            winner={winner}
             squares={current.squares}
             onClick={(i) => this.handleClick(i)}
           />
@@ -137,6 +157,31 @@ class Game extends React.Component {
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(<Game />);
 
+function parseGameField(i) {
+  switch (i) {
+    case 0:
+      return 'A1';
+    case 1:
+      return 'A2';
+    case 2:
+      return 'A3';
+    case 3:
+      return 'B1';
+    case 4:
+      return 'B2';
+    case 5:
+      return 'B3';
+    case 6:
+      return 'C1';
+    case 7:
+      return 'C2';
+    case 8:
+      return 'C3';
+    default:
+      return null;
+  };
+}
+
 function calculateWinner(squares){
   const lines = [
     [0, 1, 2],
@@ -148,16 +193,23 @@ function calculateWinner(squares){
     [0, 4, 8],
     [2, 4, 6],
   ];
+  let winner = null;
+  let fields = [];
   for (const line of lines){
     const [a, b, c] = line;
+
     if( squares[a] && squares[a] === squares[b] && squares[a] === squares[c]){
-      return squares[a];
+      winner = squares[a];
+      fields = fields.concat([a, b, c]);
     } 
   }
-  if (squares.every( x => x )){
-    return false;
+  if (squares.every( x => x ) && !winner){
+    winner = false;
   }
-  return null;
+  return {
+    winner: winner,
+    fields: fields,
+  }
 }
 
 
